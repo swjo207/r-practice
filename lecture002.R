@@ -22,85 +22,71 @@
 ## 감마분포 / gamma / shape, scale
 ## 베타 분포  / beta / shape1, shape2
 ## 코쉬분포 / causy / location, scale 
+#===========================================
+# 제5강 통계적 확률분포패키지(p162)
+#===========================================
+#--- 5.1 일량분포 난수 발생과 그림 그리기
+plot.new()
+# 균일분포 난수와 히스토그램 그리기
+runif(100)
+vec01 <- runif(100)
+hist(vec01)
+hist(runif(100))
 
-##
-# 1. 정규 분포 
-##
+set.seed(100)
+vec01 <- runif(100)
+hist(vec01)
+
+?pbinom
+pbinom(3,5,0.5)
+1-pbinom(3,5,0.5)
+pbinom(3,5,0.5,lower.tail=T)
+pbinom(3,5,0.5,lower.tail=F)
+
+#--- 정규분포 그리기(dnorm)
 x <- seq(-5,5,by=0.1)
 plot(x,dnorm(x))
 plot(x,dnorm(x),type='l')
-plot(x,dnorm(x),type='l',main='plotting normal distribution',ylab='probability',xlab='-5:5')
+plot(x,dnorm(x),type='l',main='제5강 정규분포 그림그리기',ylab="정규분포 확률",xlab='X 축')
 
-dnorm(0) == 1/sqrt(2*pi)
-dnorm(1) == exp(-1/2)/sqrt(2*pi)
-dnorm(1) == 1/sqrt(2*pi*exp(1))
+#--- 정규분포 난수 발생(rnorm) 
+vec01 <- rnorm(100)
+hist(vec01)
+summary(vec01)
 
-## Using "log = TRUE" for an extended range :
-par(mfrow = c(2,1))
-plot(function(x) dnorm(x, log = TRUE), -60, 50,
-     main = "log { Normal density }")
-curve(log(dnorm(x)), add = TRUE, col = "red", lwd = 2)
-mtext("dnorm(x, log=TRUE)", adj = 0)
-mtext("log(dnorm(x))", col = "red", adj = 1)
+#--- 정규분포 확률구하기(pnorm)
+p2 <- pnorm(54,mean=50,sd=10);p2   # 0.6554217
+p2 <- pnorm(54,mean=50,sd=10,lower.tail=T);p2 
+p1 <- pnorm(48,mean=50,sd=10);p1   # 0.4207403
+p1 <- pnorm(48,mean=50,sd=10,lower.tail=T);p1
+p2-p1             #[1]  0.2346815
 
-plot(function(x) pnorm(x, log.p = TRUE), -50, 10,
-     main = "log { Normal Cumulative }")
-curve(log(pnorm(x)), add = TRUE, col = "red", lwd = 2)
-mtext("pnorm(x, log=TRUE)", adj = 0)
-mtext("log(pnorm(x))", col = "red", adj = 1)
+p2 <- pnorm(0.4,mean=0,sd=1,lower.tail=T);p2   #[1] 0.6554217
+p1 <- pnorm(-0.2,mean=0,sd=1,lower.tail=T);p1  # [1] 0.4207403
+p2-p1  #[1] 0.2346815
 
-## if you want the so-called 'error function'
-erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
-## (see Abramowitz and Stegun 29.2.29)
-## and the so-called 'complementary error function'
-erfc <- function(x) 2 * pnorm(x * sqrt(2), lower = FALSE)
-## and the inverses
-erfinv <- function (x) qnorm((1 + x)/2)/sqrt(2)
-erfcinv <- function (x) qnorm(x/2, lower = FALSE)/sqrt(2)
+#--- 정규분포 값 구하기
+qnorm(0.95)  # [1] 1.644854
+qnorm(0.975)  # [1] 1.959964
+
+qnorm(0.6554217)  # 0.4
+qnorm(0.4207403)  #-0.2
 
 
-# 2)  Binomial Distribution 
-
-require(graphics)
-# Compute P(45 < X < 55) for X Binomial(100,0.5)
-sum(dbinom(46:54, 100, 0.5))
-
-## Using "log = TRUE" for an extended range :
-n <- 2000
-k <- seq(0, n, by = 20)
-plot (k, dbinom(k, n, pi/10, log = TRUE), type = "l", ylab = "log density",
-      main = "dbinom(*, log=TRUE) is better than  log(dbinom(*))")
-lines(k, log(dbinom(k, n, pi/10)), col = "red", lwd = 2)
-## extreme points are omitted since dbinom gives 0.
-mtext("dbinom(k, log=TRUE)", adj = 0)
-mtext("extended range", adj = 0, line = -1, font = 4)
-mtext("log(dbinom(k))", col = "red", adj = 1)
-
-
-
-##
-## 3. 정규분포 확률 구하기 
-##
-
-p2 <- pnorm(54,mean=50,sd=10,lower.tail = T)
-p2
-p1 <- pnorm(48,mean=50,sd=10,lower.tail = T)
-p1
-p2-p1
-
-p2 <- pnorm(0.4,mean=0,sd=1,lower.tail = T); p2
-p1 <- pnorm(-0.2,mean=0,sd=1,lower.tail = T);p1
-x<- seq(20,80,by=0.1);
-plot(x,dnorm(x,mean=50,sd=10))
-
-##
-## 4. t 분포 확률 구하기 
-##
-
-
+#--- t분포 그리기
+plot.new()
 par(mfrow=c(1,3))
-x <- seq(-3,3,by=0.1)
+x <- seq(-5,5,by=0.1)
 dt(x,df=5)
-plot(x,dt(x,df=2),type='l')
-plot(x,dt(x,df=10),type='l')
-plot(x,dt(x,df=2),type='l',ylim=c(0,0.4))
+?plot
+plot(x,dt(x,df=2),type='l',xlim=c(-5,5),ylim=c(0,0.4))
+plot(x,dt(x,df=5),type='l',xlim=c(-5,5),ylim=c(0,0.4))
+plot(x,dt(x,df=10),type='l',xlim=c(-5,5),ylim=c(0,0.4))
+plot.new()
+par(mfrow=c(1,1))
+par(new=T)
+plot(x,dt(x,df=2),type='l',xlim=c(-5,5),ylim=c(0,0.4),ylab="")
+par(new=T)
+plot(x,dt(x,df=5),type='l',xlim=c(-5,5),ylim=c(0,0.4),ylab="")
+par(new=T)
+plot(x,dt(x,df=10),type='l',xlim=c(-5,5),ylim=c(0,0.4),ylab="")     
