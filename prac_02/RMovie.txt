@@ -1,0 +1,780 @@
+#=========================================================================================================================================
+# 데이터 수집
+#=========================================================================================================================================
+
+install.packages("XML")
+install.packages("xtable")
+install.packages("tm")
+library(XML)
+library(xtable)
+library(tm)
+
+#다음 영화 페이지에서 평점정보 가져오는 모듈
+GetMovieData <- function(num){
+  url = gsub(" ","",paste("http://movie.daum.net/review/netizen_point/movieNetizenPoint.do?type=before&page=",num))
+  doc = htmlTreeParse(url, useInternalNodes = T, encoding="UTF-8")
+  xpathSApply(doc, "//div[@class='commentList']", xmlValue)
+  movie_nm <- xpathSApply(doc, "//span[@class='movieTitle fs11']", xmlValue)#영화명
+  score<-gsub("네티즌별점","",xpathSApply(doc, "//span[@class='star_small']", xmlValue))#별점
+  reg_date<-xpathSApply(doc, "//span[@class='date']", xmlValue)#작성일
+  contents<-gsub("네티즌별점|\r|\t|\n","",xpathSApply(doc, "//span[@class='comment article']", xmlValue))#내용
+  contents<-removeNumbers(contents)#숫자제거
+  contents<-removePunctuation(contents)#특수문자제거
+  contents<-stripWhitespace(contents)#공백제거
+  senti_data <-cbind(movie_nm,score,reg_date,contents)
+  return(senti_data)
+}
+
+51000
+6600
+gc()#메모리 정리
+DATA<-NULL
+BW <- 10#한번에 읽어드릴 페이지
+StartPage <- 1
+EndPage <- StartPage+BW-1
+
+for (i in StartPage:EndPage) {
+  getData<-GetMovieData(i)#크롤링 
+  DATA<-rbind(DATA,getData)#데이터 바인드
+}
+
+write.csv(DATA,"MOVIE_DATA_BEFORE_PREDICT.csv")
+#end
+
+
+
+
+
+
+
+
+
+
+#=========================================================================================================================================
+# 사전작성
+#=========================================================================================================================================
+install.packages("tm")
+install.packages("KoNLP",dependencies=TRUE)
+install.packages("rJava",dependencies=TRUE)
+install.packages("sqldf")
+
+Sys.setenv(JAVA_HOME='C:\\Program Files\\Java\\jre6') # for 64-bit version
+library(tm)
+library(rJava)
+library(KoNLP)
+library(RColorBrewer)
+library(sqldf)
+setwd("~")
+
+#================================================================================
+#데이터 병합
+Senti_msg1<- read.csv("MOVIE_DATA1_10000.csv")
+Senti_msg2<- read.csv("MOVIE_DATA10001_20000.csv")
+Senti_msg3<- read.csv("MOVIE_DATA20001_30000.csv")
+Senti_msg4<- read.csv("MOVIE_DATA30001_40000.csv")
+Senti_msg5<- read.csv("MOVIE_DATA40001_42298.csv")
+Senti_msg6<- read.csv("MOVIE_DATA42299_43000.csv")
+
+Senti_msg<-rbind(Senti_msg1,Senti_msg2,Senti_msg3,Senti_msg4,Senti_msg5,Senti_msg6)
+Senti_msg$X<-NULL
+head(Senti_msg,10)
+write.csv(Senti_msg,"MOVIE_DATA.csv")
+#================================================================================
+
+#================================================================================
+#Senti_msg <- read.delim(file='MOVIE_DATA.csv', header=FALSE, stringsAsFactors=FALSE)
+Senti_msg<- read.csv("MOVIE_DATA.csv")
+names(Senti_msg)
+Senti_msg$X<-NULL
+Senti_msg$movie_nm<-as.character(Senti_msg$movie_nm)
+Senti_msg$contents<-as.character(Senti_msg$contents)
+Senti_msg$reg_date<-as.character.Date(Senti_msg$reg_date)
+
+str(Senti_msg)
+Senti_msg_POS_10<-sqldf("select * from Senti_msg where score=10")
+Senti_msg_POS_9<-sqldf("select * from Senti_msg where score=9")
+Senti_msg_POS_8<-sqldf("select * from Senti_msg where score=8")
+Senti_msg_POS_7<-sqldf("select * from Senti_msg where score=7")
+Senti_msg_POS_6<-sqldf("select * from Senti_msg where score=6")
+Senti_msg_POS_5<-sqldf("select * from Senti_msg where score=5")
+Senti_msg_POS_4<-sqldf("select * from Senti_msg where score=4")
+Senti_msg_POS_3<-sqldf("select * from Senti_msg where score=3")
+Senti_msg_POS_2<-sqldf("select * from Senti_msg where score=2")
+Senti_msg_POS_1<-sqldf("select * from Senti_msg where score=1")
+Senti_msg_POS_0<-sqldf("select * from Senti_msg where score=0")
+write.csv(Senti_msg_POS_0,"Senti_msg_POS_0.csv")
+write.csv(Senti_msg_POS_1,"Senti_msg_POS_1.csv")
+write.csv(Senti_msg_POS_2,"Senti_msg_POS_2.csv")
+write.csv(Senti_msg_POS_3,"Senti_msg_POS_3.csv")
+write.csv(Senti_msg_POS_4,"Senti_msg_POS_4.csv")
+write.csv(Senti_msg_POS_5,"Senti_msg_POS_5.csv")
+write.csv(Senti_msg_POS_6,"Senti_msg_POS_6.csv")
+write.csv(Senti_msg_POS_7,"Senti_msg_POS_7.csv")
+write.csv(Senti_msg_POS_8,"Senti_msg_POS_8.csv")
+write.csv(Senti_msg_POS_9,"Senti_msg_POS_9.csv")
+write.csv(Senti_msg_POS_10,"Senti_msg_POS_10.csv")
+#================================================================================
+
+#================================================================================
+useSejongDic()
+#문장에서 단어를 분리하여 카운트
+MakeDic <- function(str){
+  str<-as.character(str)
+  str <- iconv(str, localeToCharset()[1], "UTF-8")
+  nouns <- sapply(str, extractNoun, USE.NAMES=F)  
+  wordcount <- table(unlist(nouns))
+  wordcount<-as.data.frame(wordcount) 
+  
+  return(wordcount)
+}
+#================================================================================
+
+#================================================================================
+#사전 기초데이터 작성
+
+Senti_msg_POS_3<- read.csv("Senti_msg_POS_3.csv")
+Senti_msg_cnt_0<-MakeDic(Senti_msg_POS_0$contents)
+Senti_msg_cnt_1<-MakeDic(Senti_msg_POS_1$contents)
+Senti_msg_cnt_2<-MakeDic(Senti_msg_POS_2$contents)
+Senti_msg_cnt_3<-MakeDic(Senti_msg_POS_3$contents)
+Senti_msg_cnt_3<-MakeDic(head(Senti_msg_POS_3$contents,2000))
+Senti_msg_cnt_4<-MakeDic(Senti_msg_POS_4$contents)
+Senti_msg_cnt_5<-MakeDic(Senti_msg_POS_5$contents)
+Senti_msg_cnt_6<-MakeDic(Senti_msg_POS_6$contents)
+Senti_msg_cnt_6<-MakeDic(head(Senti_msg_POS_6$contents,10000))
+Senti_msg_cnt_7<-MakeDic(Senti_msg_POS_7$contents)
+Senti_msg_cnt_8<-MakeDic(Senti_msg_POS_8$contents)
+Senti_msg_cnt_9<-MakeDic(Senti_msg_POS_9$contents)
+Senti_msg_cnt_9<-MakeDic(head(Senti_msg_POS_9$contents,30000))
+Senti_msg_cnt_10<-MakeDic(Senti_msg_POS_10$contents)
+Senti_msg_cnt_10<-MakeDic(head(Senti_msg_POS_10$contents,30000))
+write.csv(Senti_msg_cnt_10,"Senti_msg_cnt_10.csv")
+#================================================================================
+
+#================================================================================
+#인코딩 관련 테스트
+str <- iconv(str, localeToCharset()[1], "UTF-8")
+iconv("문장에서 단어를 분리하여 카운트", localeToCharset()[1], "UTF-8")
+Encoding(iconv("문장에서 단어를 분리하여 카운트", localeToCharset()[1], "UTF-8"))
+Encoding("문장에서 단어를 분리하여 카운트")
+
+a<-head(Senti_msg_POS_3$contents,3000)
+a<-as.character(a)
+a <- iconv(a, localeToCharset()[1], "UTF-8")
+Encoding(a)
+#================================================================================
+
+#================================================================================
+#매칭 관련 테스트
+pmatch("", "")                             # returns NA
+pmatch("m",   c("mean", "median", "mode")) # returns NA
+pmatch("med", c("mean", "median", "mode")) # returns 2
+
+pmatch(c("", "ab", "ab"), c("abc", "ab"), dup = FALSE)
+pmatch(c("", "ab", "ab"), c("abc", "ab"), dup = TRUE)
+## compare
+charmatch(c("", "ab", "ab"), c("abc", "ab"))
+
+
+useSystemDic()
+useSejongDic()
+extractNoun("시사회당첨돼서봤는데요 솔직히저랑은좀안맞는듯해요보다가친구랑중간에나왔어요 귀엽긴했지만좀어린이취향인듯")
+extractNoun("시사회 당첨 돼서 봤는데요 솔직히 저랑은 좀 안맞는 듯해요 보다가 친구랑 중간에 나왔어요 귀엽긴 했지만 좀 어린이 취향인듯")
+
+
+
+
+wordList <- str_split("시사회당첨돼서봤는데요 솔직히저랑은좀안맞는듯해요보다가친구랑중간에나왔어요 귀엽긴했지만좀어린이취향인듯", '\\s+')
+words <- unlist(wordList)
+
+a<-pmatch(c("어린이","솔히","시사회"),words)
+row=grep(words,"어린이")
+
+k<-c("어린이","솔히","시사회")
+KK<-NULL
+for (i in k) {
+  II<-grep(i,"시사회당첨돼서봤는데요 솔직히 시사회 저랑은좀안맞는듯해요보다가친구랑중간에나왔어요 귀엽긴했지만좀어린이취향인듯" )
+  KK<-rbind(KK,II)
+}
+KK
+sum(!is.na(KK))
+
+
+Cnt_Word <- function(str,Dic){# str 문장에서 Dic 에 있는 내용이 있는지 카운트하여 개수를 반환 
+  TMP<-NULL
+  for (i in Dic) {
+    cnt<-grep(i,str )
+    TMP<-cbind(TMP,cnt)
+  }
+  return(sum(!is.na(TMP)))
+}
+
+
+k<-c("어린이","솔히","시사회","해요","쓰레")
+j<-"시사회당첨돼서봤는데요 솔직히 쓰레 시사회 쓰레기는 저랑은좀안맞는듯해요보다가친구랑중간에나왔어요 귀엽긴했지만좀어린이취향인듯"
+Cnt_Word(j,k)
+
+
+
+
+
+
+
+#=========================================================================================================================================
+# 감성분석
+#=========================================================================================================================================
+
+
+#===========================================================================================================
+#라이브러리 로딩
+#===========================================================================================================
+library(plyr)
+library(stringr)
+library(party)
+
+#===========================================================================================================
+#디렉토리 세팅
+#===========================================================================================================
+setwd("~")
+
+#===========================================================================================================
+#함수 로딩
+#===========================================================================================================
+Cnt_Word <- function(str,Dic){# str 문장에서 Dic 에 있는 내용이 있는지 카운트하여 개수를 반환 
+  TMP<-c(NA)
+  for (i in Dic) {
+    cnt<-grep(i,str)
+    #cat(i,cnt)
+    TMP<-cbind(TMP,cnt)
+    #cat(TMP)
+  }
+  return(sum(!is.na(TMP)))
+}
+
+
+
+
+senti_Score <- function(sentences, vNegTerms, negTerms, posTerms, vPosTerms){# 4가지 분류의 사전을 가지고 문장에 출현 빈도수를 스코어링
+  final_scores <- matrix('', 0, 5)
+  scores <- laply(sentences, function(sentence, vNegTerms, negTerms, posTerms, vPosTerms){
+    initial_sentence <- sentence
+    sentence <- tolower(sentence)
+    vPosMatches <- Cnt_Word(sentence, vPosTerms)
+    posMatches <- Cnt_Word(sentence, posTerms)
+    vNegMatches <- Cnt_Word(sentence, vNegTerms)
+    negMatches <- Cnt_Word(sentence, negTerms)
+    score <- c(vNegMatches, negMatches, posMatches, vPosMatches)
+    newrow <- c(initial_sentence, score)
+    final_scores <- rbind(final_scores, newrow)
+    return(final_scores)
+  }, vNegTerms, negTerms, posTerms, vPosTerms)
+  return(scores)
+} 
+
+
+
+
+
+
+
+#===========================================================================================================
+#교육용 사전데이터 로딩
+#===========================================================================================================
+DIC_org<-read.csv("senti_dic_org.csv", header=FALSE)
+names(DIC_org) <- c('word', 'score')
+DIC_org$word <- tolower(DIC_org$word) 
+head(DIC_org,10)
+#===========================================================================================================
+#교육용 사전데이터 점수별로 4구간으로 분리
+#===========================================================================================================
+vNegTerms_org <- DIC_org$word[DIC_org$score==-5 | DIC_org$score==-4]
+negTerms_org <- DIC_org$word[DIC_org$score==-3 | DIC_org$score==-2 | DIC_org$score==-1]
+posTerms_org <- DIC_org$word[DIC_org$score==3 | DIC_org$score==2 | DIC_org$score==1]
+vPosTerms_org <- DIC_org$word[DIC_org$score==5 | DIC_org$score==4] 
+#===========================================================================================================
+#classification에 사용할 긍부정 문장 준비
+#===========================================================================================================
+negText<- read.csv("Senti_msg_POS_0.csv", header=TRUE, stringsAsFactors=FALSE)#부정 문장
+negText <-negText$contents
+negText <-head(negText,1000)
+posText<- read.csv("Senti_msg_POS_10.csv", header=TRUE, stringsAsFactors=FALSE)#긍정 문장
+posText <- posText$contents
+posText <-head(posText,1000)
+head(posText,10)
+head(negText,10)
+#===========================================================================================================
+#스코어링
+#===========================================================================================================
+posResult_org <- as.data.frame(senti_Score(posText, vNegTerms_org, negTerms_org, posTerms_org, vPosTerms_org))
+negResult_org <- as.data.frame(senti_Score(negText, vNegTerms_org, negTerms_org, posTerms_org, vPosTerms_org))
+posResult_org <- cbind(posResult_org, 'pos')
+colnames(posResult_org) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos', 'sentiment')
+negResult_org <- cbind(negResult_org, 'neg')
+colnames(negResult_org) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos', 'sentiment') 
+#===========================================================================================================
+#classification 감성 사전 검증
+#===========================================================================================================
+results_org <- rbind(posResult_org, negResult_org)   
+#데이터 형 변환
+results_org$vNeg<-as.integer(results_org$vNeg)
+results_org$neg<-as.integer(results_org$neg)
+results_org$pos<-as.integer(results_org$pos)
+results_org$vPos<-as.integer(results_org$vPos)
+
+head(results_org[,2:5],10)
+str(results_org)
+
+ctree_classifier_org <- ctree(sentiment ~ vNeg + neg + pos + vPos , results_org[,2:6])
+plot(ctree_classifier_org)
+ctree_confTable_org <- table(predict(ctree_classifier_org, results_org), results_org[,6], dnn=list('predicted','actual'))
+ctree_confTable_org
+#적중률 확인
+binom.test(ctree_confTable_org[1,1] + ctree_confTable_org[2,2], nrow(results_org), p=0.5)
+table(predict(ctree_classifier_org, results_org))
+
+
+
+
+
+
+
+
+
+
+
+
+
+#===========================================================================================================
+#사전데이터 로딩
+#===========================================================================================================
+DIC<-read.csv("senti_dic.csv", header=FALSE)
+names(DIC) <- c('word', 'score')
+DIC$word <- tolower(DIC$word)  
+head(DIC,10)
+
+#===========================================================================================================
+#사전데이터 점수별로 4구간으로 분리
+#===========================================================================================================
+vNegTerms <- DIC$word[DIC$score==-5 | DIC$score==-4]
+negTerms <- DIC$word[DIC$score==-3 | DIC$score==-2 | DIC$score==-1]
+posTerms <- DIC$word[DIC$score==3 | DIC$score==2 | DIC$score==1]
+vPosTerms <- DIC$word[DIC$score==5 | DIC$score==4] 
+
+
+
+
+
+#===========================================================================================================
+#classification에 사용할 긍부정 문장 준비
+#===========================================================================================================
+negText<- read.csv("Senti_msg_POS_0.csv", header=TRUE, stringsAsFactors=FALSE)#부정 문장
+negText <-negText$contents
+negText <-head(negText,1000)
+posText<- read.csv("Senti_msg_POS_10.csv", header=TRUE, stringsAsFactors=FALSE)#긍정 문장
+posText <- posText$contents
+posText <-head(posText,1000)
+head(posText,10)
+head(negText,10)
+
+
+#===========================================================================================================
+#스코어링
+#===========================================================================================================
+posResult <- as.data.frame(senti_Score(posText, vNegTerms, negTerms, posTerms, vPosTerms))
+negResult <- as.data.frame(senti_Score(negText, vNegTerms, negTerms, posTerms, vPosTerms))
+posResult <- cbind(posResult, 'pos')
+colnames(posResult) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos', 'sentiment')
+negResult <- cbind(negResult, 'neg')
+colnames(negResult) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos', 'sentiment') 
+
+
+
+
+#===========================================================================================================
+#classification 감성 사전 검증
+#===========================================================================================================
+results_dic <- rbind(posResult, negResult)   
+
+#데이터 형 변환
+results_dic$vNeg<-as.integer(results_dic$vNeg)
+results_dic$neg<-as.integer(results_dic$neg)
+results_dic$pos<-as.integer(results_dic$pos)
+results_dic$vPos<-as.integer(results_dic$vPos)
+
+head(results_dic[,2:5],10)
+str(results_dic)
+
+ctree_classifier_dic <- ctree(sentiment ~ vNeg + neg + pos + vPos , results_dic[,2:6])
+plot(ctree_classifier_dic)
+ctree_confTable <- table(predict(ctree_classifier_dic, results_dic), results_dic[,6], dnn=list('predicted','actual'))
+ctree_confTable
+#적중률 확인
+binom.test(ctree_confTable[1,1] + ctree_confTable[2,2], nrow(results_dic), p=0.6)
+table(predict(ctree_classifier_dic, results_dic))
+
+
+
+
+
+
+
+#===========================================================================================================
+#기초데이터 긍부정 분류 => after
+#===========================================================================================================
+Text<- read.csv("MOVIE_DATA.csv", header=TRUE, stringsAsFactors=FALSE)#문장
+#긍부정 판단
+sampleText<-head(Text,10)
+sampleText<-Text
+system.time(Result <- as.data.frame(senti_Score(sampleText$content, vNegTerms, negTerms, posTerms, vPosTerms)))
+colnames(Result) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos')
+Result$vNeg<-as.integer(Result$vNeg)
+Result$neg<-as.integer(Result$neg)
+Result$pos<-as.integer(Result$pos)
+Result$vPos<-as.integer(Result$vPos)
+str(Result)
+
+sentiment<-predict(ctree_classifier, Result)
+table(sentiment)
+Result$sentence<-NULL
+Result<-cbind(Result,sentiment)
+Result_set<-cbind(sampleText, Result)
+write.csv(Result_set,"Dataset.csv")
+#===========================================================================================================
+#기초데이터 긍부정 분류 => before
+#===========================================================================================================
+Text_BEFORE<- read.csv("MOVIE_DATA_BEFORE.csv", header=TRUE, stringsAsFactors=FALSE)#문장
+#긍부정 판단
+sampleText<-head(Text_BEFORE,10)
+sampleText<-Text_BEFORE
+system.time(Result <- as.data.frame(senti_Score(sampleText$content, vNegTerms, negTerms, posTerms, vPosTerms)))
+colnames(Result) <- c('sentence', 'vNeg', 'neg', 'pos', 'vPos')
+Result$vNeg<-as.integer(Result$vNeg)
+Result$neg<-as.integer(Result$neg)
+Result$pos<-as.integer(Result$pos)
+Result$vPos<-as.integer(Result$vPos)
+str(Result)
+
+sentiment<-predict(ctree_classifier, Result)
+table(sentiment)
+Result$sentence<-NULL
+Result<-cbind(Result,sentiment)
+Result_set<-cbind(sampleText, Result)
+write.csv(Result_set,"Dataset_BEFORE.csv")
+
+
+
+
+#===========================================================================================================
+#영화이름 cleansing 
+#===========================================================================================================
+Result_set<- read.csv("Dataset.csv", header=TRUE, stringsAsFactors=FALSE)
+Result_set_BEFORE<- read.csv("Dataset_BEFORE.csv", header=TRUE, stringsAsFactors=FALSE)
+Result_set_AFTER<- read.csv("Dataset_AFTER.csv", header=TRUE, stringsAsFactors=FALSE)
+
+str(Result_set)
+movie_nm<-Result_set$movie_nm
+movie_NM<-gsub(" ", "",movie_nm)#공백제거
+movie_NM<-unique(movie_NM)#중복제거
+#===========================================================================================================
+#영화이름 cleansing 
+#===========================================================================================================
+
+#===========================================================================================================
+#영화 날짜별 긍부정 data 
+#===========================================================================================================
+library(sqldf)
+movie_NM_senti<-sqldf("select movie_nm,reg_date,sentiment from Result_set")
+head(movie_NM_senti,100)
+str(movie_NM_senti)
+movie_NM_senti$movie_nm<-gsub(" ", "",movie_NM_senti$movie_nm)#공백제거
+movie_NM_senti$reg_date<-gsub(" ", "",movie_NM_senti$reg_date)
+movie_NM_senti$sentiment<-gsub(" ", "",movie_NM_senti$sentiment)
+
+movie_NM_senti$movie_nm<-as.factor(movie_NM_senti$movie_nm)
+movie_NM_senti$sentiment<-as.factor(movie_NM_senti$sentiment)
+str(movie_NM_senti)
+
+#전체기간 카운트
+movie_NM_senti_cnt<-sqldf("
+                          select a.movie_nm, a.cnt as pos_cnt, b.cnt as neg_cnt, (a.cnt+b.cnt) as cnt from       
+                          (select movie_nm, count(*) as cnt from Result_set where sentiment='pos'  group by movie_nm having cnt>10 ) as a,
+                          (select movie_nm, count(*) as cnt from Result_set where sentiment='neg'  group by movie_nm having cnt>10 ) as b      
+                          where a.movie_nm=b.movie_nm 
+                          ")
+write.csv(movie_NM_senti_cnt,"movie_NM_senti_cnt.csv")
+
+
+movie_NM_senti_cnt$movie_nm<-gsub(" ", "",movie_NM_senti_cnt$movie_nm)#공백제거
+
+
+
+
+#영화별 개봉일 데이터 생성
+movie_info<- read.csv("movie_info.csv", header=TRUE, stringsAsFactors=FALSE)#문장
+head(movie_info)
+str(movie_info)
+movie_info$from<-as.factor(movie_info$from)
+movie_info$screening_grade<-as.factor(movie_info$screening_grade)
+movie_info$style1<-as.factor(movie_info$style1)
+movie_info$style2<-as.factor(movie_info$style2)
+movie_info$distributor1<-as.factor(movie_info$distributor1)
+movie_info$distributor2<-as.factor(movie_info$distributor2)
+movie_info$director1<-as.factor(movie_info$director1)
+movie_info$director2<-as.factor(movie_info$director2)
+movie_info$actor1<-as.factor(movie_info$actor1)
+movie_info$actor2<-as.factor(movie_info$actor2)
+
+
+
+
+
+movie_info$movie_nm<-as.factor(movie_info$movie_nm)
+movie_NM_senti_cnt$movie_nm<-as.factor(movie_NM_senti_cnt$movie_nm)
+head(movie_NM_senti_cnt)
+str(movie_NM_senti_cnt)
+
+
+#영화 이름과 개봉일 매핑
+movie_NM_open_date<-sqldf("
+                          select * from       
+                          movie_NM_senti_cnt as a,
+                          movie_info as b      
+                          where a.movie_nm=b.movie_nm 
+                          ")
+str(movie_NM_open_date)
+head(movie_NM_open_date)
+
+movie_NM_open_date$open_date<-removePunctuation(movie_NM_open_date$open_date)#특수문자제거
+movie_NM_open_date$open_date_m15<-removePunctuation(movie_NM_open_date$open_date_m15)#특수문자제거
+movie_NM_open_date$open_date_p15<-removePunctuation(movie_NM_open_date$open_date_p15)#특수문자제거
+movie_NM_open_date$open_date_p30<-removePunctuation(movie_NM_open_date$open_date_p30)#특수문자제거
+
+
+
+
+#영화별 긍부정 카운트
+
+TMP_Result_set<-Result_set
+TMP_Result_set<-Result_set_BEFORE
+TMP_Result_set<-Result_set_AFTER
+
+TMP_Result_set$movie_nm<-gsub(" ", "",TMP_Result_set$movie_nm)#공백제거
+
+library(tm)
+TMP_Result_set$reg_date<-removePunctuation(TMP_Result_set$reg_date)#특수문자제거
+
+
+str(TMP_Result_set)
+head(TMP_Result_set)
+
+
+
+
+#
+sqldf("
+      select a.movie_nm, a.cnt as pos_cnt, b.cnt as neg_cnt, (a.cnt+b.cnt) as cnt from      
+      (select a.movie_nm, count(*) as cnt from TMP_Result_set as a, movie_NM_open_date as b where a.movie_nm=b.movie_nm and a.sentiment='pos' and b.open_date>a.reg_date  group by a.movie_nm  ) as a,
+      (select a.movie_nm, count(*) as cnt from TMP_Result_set as a, movie_NM_open_date as b where a.movie_nm=b.movie_nm and a.sentiment='neg' and b.open_date>a.reg_date  group by a.movie_nm  ) as b      
+      where a.movie_nm=b.movie_nm 
+      ")
+sqldf("
+      select a.movie_nm, count(*) as cnt, open_date, reg_date from movie_NM_open_date b LEFT OUTER JOIN TMP_Result_set a 
+      where a.movie_nm=b.movie_nm and a.sentiment='pos' 
+      and b.open_date<=a.reg_date and b.open_date_p15>a.reg_date  
+      group by a.movie_nm   
+      ")
+sqldf("
+      select a.movie_nm, count(*) as cnt, open_date, reg_date from movie_NM_open_date b LEFT OUTER JOIN TMP_Result_set a 
+      where a.movie_nm=b.movie_nm and a.sentiment='pos' 
+      and b.open_date_p15<=a.reg_date and b.open_date_p30>a.reg_date  
+      group by a.movie_nm   
+      ")
+sqldf("desc movie_NM_open_date ")
+
+
+
+
+
+#개봉일 매핑된 데이터 
+
+anal_movie_data<- read.csv("anal_movie_data.csv", header=TRUE, stringsAsFactors=FALSE)#문장
+str(anal_movie_data)
+head(anal_movie_data)
+anal_movie_data$open_date<-removePunctuation(anal_movie_data$open_date)#특수문자제거
+anal_movie_data$open_date_m15<-removePunctuation(anal_movie_data$open_date_m15)#특수문자제거
+anal_movie_data$open_date_p15<-removePunctuation(anal_movie_data$open_date_p15)#특수문자제거
+anal_movie_data$open_date_p30<-removePunctuation(anal_movie_data$open_date_p30)#특수문자제거
+
+
+
+
+
+
+
+Cnt_senti <- function(movie_nm,startdt,enddt,senti){
+  cnt<-nrow(TMP_Result_set[TMP_Result_set$movie_nm==movie_nm & TMP_Result_set$reg_date>startdt & TMP_Result_set$reg_date<enddt & TMP_Result_set$sentiment==senti,])
+  return(cnt)
+}
+#Cnt_senti('월드워Z','20130620','20130727','pos')
+
+cnt_final_data<-nrow(anal_movie_data)
+
+RESULT<-NULL
+for (i in 1:cnt_final_data) {
+  
+  cnt_pos_m15<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date_m15[i],anal_movie_data$open_date[i],'pos')
+  cnt_pos_p15<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date[i],anal_movie_data$open_date_p15[i],'pos')
+  cnt_pos_p30<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date_p15[i],anal_movie_data$open_date_p30[i],'pos')
+  cnt_neg_m15<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date_m15[i],anal_movie_data$open_date[i],'neg')
+  cnt_neg_p15<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date[i],anal_movie_data$open_date_p15[i],'neg')
+  cnt_neg_p30<-Cnt_senti(anal_movie_data$movie_nm[i],anal_movie_data$open_date_p15[i],anal_movie_data$open_date_p30[i],'neg') 
+  
+  TMP<-cbind(anal_movie_data$movie_nm[i],cnt_pos_m15,cnt_pos_p15,cnt_pos_p30,cnt_neg_m15,cnt_neg_p15,cnt_neg_p30)
+  RESULT<-rbind(RESULT,TMP)
+  
+}
+
+#write.csv(RESULT,"MOVIE_DATA_RESULT.csv")
+write.csv(RESULT,"MOVIE_DATA_RESULT_BEFORE.csv")
+
+
+TMP_final<-cbind(anal_movie_data,RESULT)
+write.csv(TMP_final,"TMP_final.csv")
+
+
+
+
+TMP_final<- read.csv("TMP_final.csv", header=TRUE, stringsAsFactors=FALSE)
+TMP_final<- read.csv("TMP_final.csv", header=TRUE, stringsAsFactors=TRUE)
+TMP_final1<-cbind(TMP_final,RESULT)
+
+head(TMP_final1)
+str(TMP_final)
+write.csv(TMP_final1,"TMP_final1.csv")
+
+summary(TMP_final)
+inspect(TMP_final)
+
+
+
+
+final_data_movie<- read.csv("final_data_movie.csv", header=TRUE, stringsAsFactors=FALSE)
+final_data_movie<- read.csv("final_data_movie_enc.csv", header=TRUE, stringsAsFactors=FALSE)
+
+movie_info<-final_data_movie
+head(movie_info)
+str(movie_info)
+
+
+movie_info$X0<-NULL
+movie_info$month<-as.factor(movie_info$month)
+movie_info$day<-as.factor(movie_info$day)
+movie_info$season1<-as.factor(movie_info$season1)
+movie_info$season2<-as.factor(movie_info$season2)
+movie_info$from<-as.factor(movie_info$from)
+movie_info$screening_grade<-as.factor(movie_info$screening_grade)
+movie_info$style1<-as.integer(movie_info$style1)
+movie_info$style2<-as.integer(movie_info$style2)
+movie_info$LEVEL<-as.factor(movie_info$LEVEL)
+#movie_info[[ "LEVEL"]] <- ordered(cut(movie_info[[ "audience_num"]],c(0,2000000,4000000,6000000,8000000,10000000,12000000,14000000,16000000,18000000,20000000)),labels=c("0~200M","200~400M","600M","800M","1000M","1200M","1400M","1600M","1800M","2000M"))
+#movie_info[[ "LEVEL"]] <- ordered(cut(movie_info[["audience_num"]],c(0,2000000,4000000,6000000,20000000)),labels=c("0~200M","200~400M","2000M"))
+
+
+
+
+head(movie_info[,c('month','day','season1','season2','from','screen_num','play_time','screening_grade','style1','style2','distributor1','distributor2','director1','director2','actor1','actor2','LEVEL')],10)
+
+
+#영화진흥원 정형데이터 분석
+myFormula <- LEVEL ~ month + day + season1 + season2 + from + screen_num + play_time +screening_grade + style1 + style2 + distributor1 + distributor2 + director1 + director2 + actor1 + actor2 
+myFormula <- LEVEL ~ month + day + screen_num + from + actor1 + actor2 + distributor1 + distributor2 + director1 + director2
+myFormula <- LEVEL ~ season1 + from + distributor1 + director1 + actor1 + screening_grade + play_time + style1
+myFormula <- LEVEL ~ distributor1+distributor2+director1+director2+actor1+actor2+season1+season2
+myFormula <- LEVEL ~ screen_num+distributor1+director1+actor1
+myFormula <- LEVEL ~ month + day + season1 + season2 + from
+
+
+
+
+myFormula <- LEVEL ~ senti_pos_m15+senti_neg_m15+senti_pos_p15+senti_neg_p15+senti_pos_p30+senti_neg_p30+pos_cnt+neg_cnt
+myFormula <- LEVEL ~ senti_pos_m15+senti_neg_m15+senti_pos_p15+senti_neg_p15+senti_pos_p30+senti_neg_p30+pos_cnt+neg_cnt+season1 + from + distributor1 + director1 + actor1 + screening_grade + play_time + style1
+myFormula <- LEVEL ~ senti_pos_m15+senti_neg_m15+senti_pos_p15+senti_neg_p15+senti_pos_p30+senti_neg_p30+season1 + from + distributor1 + director1 + actor1 + screening_grade + play_time + style1
+myFormula <- LEVEL ~ senti_pos_m15+senti_neg_m15+season1 + from + distributor1 + director1 + actor1 + screening_grade + play_time + style1
+myFormula <- LEVEL ~ cnt_pos_m15+cnt_neg_m15+cnt_pos_p15+cnt_neg_p15+season1 + from + distributor1 + director1 + actor1 + screening_grade + play_time + style1
+
+
+
+
+
+#감성제외
+anal_movie_info<-movie_info[,c('month','day','season1','season2','from','screen_num','play_time','screening_grade','style1','style2','distributor1','distributor2','director1','director2','actor1','actor2','LEVEL')]
+str(anal_movie_info)
+
+#감성포함
+anal_movie_info<-movie_info
+
+
+
+
+
+gc()
+ctree_classifier <- ctree(myFormula , anal_movie_info)
+ctree_classifier <- ctree(LEVEL ~ . , anal_movie_info)
+library(rpart)
+rpart_classifier <- rpart(myFormula , data=anal_movie_info)
+
+
+plot(ctree_classifier)
+plot(rpart_classifier)
+ctree_confTable <- table(predict(ctree_classifier, anal_movie_info), anal_movie_info$LEVEL, dnn=list('predicted','actual'))
+ctree_confTable
+
+
+rpart_confTable <- table(predict(rpart_classifier, anal_movie_info), anal_movie_info$LEVEL, dnn=list('predicted','actual'))
+rpart_confTable
+
+#적중률 확인
+
+table(predict(ctree_classifier, anal_movie_info))
+
+
+
+
+
+#===========================================================================================================
+#rattle package 를 이용하여 분석 진행
+#===========================================================================================================
+
+install.packages("RGtk2")
+install.packages("rattle")
+library("rattle")
+rattle() 
+
+
+crs$rf <- randomForest(as.factor(LEVEL) ~ .,
+                       data=crs$dataset[,c(crs$input, crs$target)], 
+                       ntree=500,
+                       mtry=3,
+                       importance=TRUE,
+                       na.action=na.roughfix,
+                       replace=FALSE)
+crs$rpart
+
+
+crs_confTable <- table(predict(crs$rpart, crs$dataset[,c(crs$input, crs$target)]), crs$dataset[,c(crs$input, crs$target)]$LEVEL, dnn=list('predicted','actual'))
+crs$rf
+crs_confTable <- table(predict(crs$rf, crs$dataset[,c(crs$input, crs$target)]), crs$dataset[,c(crs$input, crs$target)]$LEVEL, dnn=list('predicted','actual'))
+
+str(crs$dataset[,c(crs$input, crs$target)])
+crs$pr <- predict(crs$rf, newdata=crs$testset)
+str(crs$testset)
+str(crs$testset[,c(crs$input, crs$target)])
+crs$testset[,c(crs$input, crs$target)]$screening_grade=as.factor(crs$testset[,c(crs$input, crs$target)]$screening_grade)
+crs$testset$screening_grade<-as.factor(crs$testset$screening_grade)
+crs$dataset[,c(crs$input, crs$target)]$screening_grade
+plot(crs$rf)
+crs$rpart
+crs$testset<-NULL
+table(crs$testset[,c(crs$input, crs$target)]$LEVEL, crs$pr, dnn=c("Actual", "Predicted"))
+ctree_confTable <- table(predict(ctree_classifier, anal_movie_info), anal_movie_info$LEVEL, dnn=list('predicted','actual'))
+

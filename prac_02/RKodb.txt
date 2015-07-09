@@ -1,0 +1,271 @@
+### 연관성분석
+
+library(arules)
+## 1. example: <transactions자료를 리스트 형태로 변환
+a_list = list(
+c("a","b","c"),
+c("a","b"),
+c("a","b","d"),
+c("c","e"),
+c("a","b","d","e")
+)
+## set transaction names
+names(a_list) = paste("Tr",c(1:5), sep = "")
+a_list
+## coerce into transactions
+trans = as(a_list, "transactions")
+
+## analyze transactions
+summary(trans)
+image(trans)
+## 2. example: creating transactions from a matrix
+a_matrix = matrix(
+c(1,1,1,0,0,
+1,1,0,0,0,
+1,1,0,1,0,
+0,0,1,0,1,
+1,1,0,1,1), ncol = 5)
+## set dim names
+dimnames(a_matrix) = list(
+c("a","b","c","d","e"),
+paste("Tr",c(1:5), sep = ""))
+a_matrix
+
+
+### 연관성분석2
+trans2 = as(a_matrix, "transactions")
+trans2
+## example 3: creating transactions from data.frame
+a_data.frame = data.frame(
+age = as.factor(c(6,8,7,6,9,5)),
+grade = as.factor(c(1,3,1,1,4,1)))
+## note: all attributes have to be factors
+a_data.frame
+## coerce
+trans3 = as(a_data.frame, "transactions")
+image(trans3)
+## 3. example creating from data.frame with NA
+a_df = sample(c(LETTERS[1:5], NA),10,TRUE)
+a_df = data.frame(X = a_df, Y = sample(a_df))
+a_df
+trans3 = as(a_df, "transactions")
+trans3
+as(trans3, "data.frame")
+
+library(arules)
+data(Adult)
+str(Adult)
+## Mine association rules: APRIOR알고리즘을 이용한 연관규칙의 탐색.
+## 지지도 >= 0.5, 신뢰도 0.9 이상인 규칙들만 탐색함
+rules = apriori(Adult,
+parameter = list(supp = 0.5, conf = 0.9, target = "rules"))
+## 요약함수
+summary(rules)
+## 지지도 >=0.4 이상만
+rules = apriori(Adult, parameter = list(support = 0.4))
+## 좌측 아이템집합에 "sex"가 들어 있고 ## 규칙의 향상도가 0.3이상인
+## 규칙만을 선택
+rules.sub = subset(rules, subset = rhs %pin% "sex" & lift > 1.3)
+## 선택된 규칙들을 보여줌
+inspect(SORT(rules.sub)[1:3])
+
+
+
+## 군집화1
+x = matrix(rnorm(100), nrow=5)
+dist(x)
+par(mfrow=c(2,2))
+plot(h<-hclust(dist(x), method = "single"))
+plot(h<-hclust(dist(x), method = "complete"))
+plot(h<-hclust(dist(x), method = "average"))
+plot(h<-hclust(dist(x), method = "centroid"),hang=-1)
+
+## 군집화2
+set.seed(1) pts <- cbind(X=rnorm(500,rep(seq(1,9,by=2)/10,100),.022),Y=rnorm(500,.5,.15)) 
+plot(pts) 
+plot(V,add=TRUE)
+kmeans(pts, centers=5, nstart = 1, algorithm = "Lloyd")
+library(tripack) V <- voronoi.mosaic(means[,1],means[,2]) P <- voronoi.polygons(V) points(V,pch=19) plot(V,add=TRUE)
+
+
+## 의사결정트리
+set.seed(1) 
+A <- c(rep(.2,100),rep(.2,100),rep(.5,100),rep(.8,100),rep(.8,100)) 
+B <- c(rep(.2,100),rep(.8,100),rep(.5,100),rep(.2,100),rep(.8,100)) 
+pts <- cbind(X=rnorm(500,A,.075),Y=rnorm(500,B,.075))
+
+ library(MASS)
+ library(tree)
+ data(iris)
+ ir.tr = tree(Species ~., iris)
+ summary(ir.tr)
+ir.tr1 = snip.tree(ir.tr, nodes = c(12, 7))
+plot(ir.tr1)
+text(ir.tr1, all = T)
+par(pty = "s")
+plot(iris[, 3],iris[, 4], type="n",
+xlab="petal length", ylab="petal width")
+text(iris[, 3], iris[, 4], c("s", "c", "v")[iris[, 5]])
+partition.tree(ir.tr1, add = TRUE, cex = 1.5)
+plot(prune.misclass(ir.tr))
+fin.tr = prune.misclass(ir.tr, best=4)
+plot(fin.tr)
+text(fin.tr, all = T)
+
+
+## KNN
+library(class)
+data(iris)
+y<-iris[,5]
+tr.idx<-sample(length(y), 75)
+x.tr <- iris[tr.idx,-5]
+x.te <- iris[-tr.idx,-5]
+m1<-knn(x.tr, x.te, y[tr.idx], k = 3)
+# k=number of neighbours considered.
+plot(m1)
+
+## SVM
+library(e1071)
+data(iris)
+attach(iris)
+## classification mode
+# default with factor response:
+m2 <- svm(Species~., data = iris, kernel="linear")
+plot(m2, iris, Petal.Width ~ Petal.Length,
+slice = list(Sepal.Width = 3, Sepal.Length = 4))
+print(model)
+summary(model)
+# test with train data
+pred <- predict(model, x)
+# (same as:)
+pred <- fitted(model)
+
+# Check accuracy:
+table(pred, y)
+# compute decision values and probabilities:
+pred <- predict(model, x, decision.values = TRUE)
+pred, "decision.values")[1:4,]
+# visualize (classes by color, SV by crosses):
+plot(cmdscale(dist(iris[,-5])),
+col = as.integer(iris[,5]),
+pch = c("o","+")[1:150 %in% model$index + 1])
+
+
+## RandomForest
+set.seed(71) 
+iris.rf <- randomForest(Species ~ ., data=iris, importance=TRUE, proximity=TRUE) print(iris.rf) 
+## Look at variable importance: 
+round(importance(iris.rf), 2) 
+iris.mds <- cmdscale(1 - iris.rf$proximity, eig=TRUE) op <- par(pty="s") pairs(cbind(iris[,1:4], iris.mds$points), cex=0.6, gap=0, col=c("red", "green", "blue")[as.numeric(iris$Species)], main="Iris Data: Predictors and MDS of Proximity Based on RandomForest") par(op) print(iris.mds$GOF) ? ## The `unsupervised' case: set.seed(17) iris.urf <- randomForest(iris[, -5]) MDSplot(iris.urf, iris$Species) ? ## stratified sampling: draw 20, 30, and 20 of the species to grow each tree. (iris.rf2 <- randomForest(iris[1:4], iris$Species, sampsize=c(20, 30, 20))) ? ## Regression: ## data(airquality) set.seed(131) ozone.rf <- randomForest(Ozone ~ ., data=airquality, mtry=3, importance=TRUE, na.action=na.omit) print(ozone.rf) ## Show "importance" of variables: higher value mean more important: round(importance(ozone.rf), 2) ? ## "x" can be a matrix instead of a data frame: set.seed(17) x <- matrix(runif(5e2), 100) y <- gl(2, 50) (myrf <- randomForest(x, y)) (predict(myrf, x)) ? ## "complicated" formula: (swiss.rf <- randomForest(sqrt(Fertility) ~ . - Catholic + I(Catholic < 50), data=swiss)) (predict(swiss.rf, swiss)) ## Test use of 32-level factor as a predictor: set.seed(1) x <- data.frame(x1=gl(32, 5), x2=runif(160), y=rnorm(160)) (rf1 <- randomForest(x[-3], x[[3]], ntree=10)) ? ## Grow no more than 4 nodes per tree: (treesize(randomForest(Species ~ ., data=iris, maxnodes=4, ntree=30)))
+
+
+
+## wiki 
+library(tm) 
+library(stringi) 
+library(proxy) 
+wiki <- "http://en.wikipedia.org/wiki/" 
+titles <- c("Integral", "Riemann_integral", "Riemann-Stieltjes_integral", "Derivative", "Limit_of_a_sequence", "Edvard_Munch", "Vincent_van_Gogh", "Jan_Matejko", "Lev_Tolstoj", "Franz_Kafka", "J._R._R._Tolkien") 
+articles <- character(length(titles)) 
+for (i in 1:length(titles)) { articles[i] <- stri_flatten(readLines(stri_paste(wiki, titles[i])), col = " ") } 
+docs <- Corpus(VectorSource(articles)) 
+
+docs[[1]] 
+docs2 <- tm_map(docs, function(x) stri_replace_all_regex(x, "<.+?>", " ")) 
+docs3 <- tm_map(docs2, function(x) stri_replace_all_fixed(x, "\t", " ")) 
+docs4 <- tm_map(docs3, PlainTextDocument) docs5 <- tm_map(docs4, stripWhitespace) docs6 <- tm_map(docs5, removeWords, stopwords("english")) 
+docs7 <- tm_map(docs6, removePunctuation) docs8 <- tm_map(docs7, tolower) docs8[[1]] 
+
+## 윌리엄세익스피어
+TEXTFILE = "data/pg100.txt"
+if (!file.exists(TEXTFILE)) {
+??? download.file("http://www.gutenberg.org/cache/epub/100/pg100.txt", destfile = TEXTFILE)
+}
+shakespeare = readLines(TEXTFILE)
+length(shakespeare)
+
+shakespeare = shakespeare[-(1:173)]
+shakespeare = shakespeare[-(124195:length(shakespeare))]
+
+shakespeare = paste(shakespeare, collapse = " ")
+nchar(shakespeare)
+doc.corpus <- tm_map(doc.corpus, tolower)
+doc.corpus <- tm_map(doc.corpus, removePunctuation)
+doc.corpus <- tm_map(doc.corpus, removeNumbers)
+doc.corpus <- tm_map(doc.corpus, removeWords, stopwords("english"))
+library(SnowballC)
+doc.corpus <- tm_map(doc.corpus, stemDocument)
+doc.corpus <- tm_map(doc.corpus, stripWhitespace)
+doc.corpus <- tm_map(doc.corpus, stripWhitespace)
+TDM <- TermDocumentMatrix(doc.corpus)
+TDM
+DTM <- DocumentTermMatrix(doc.corpus)
+inspect(DTM[1:10,1:10])
+findFreqTerms(TDM, 2000)
+findAssocs(TDM, "love", 0.8)
+TDM.common = removeSparseTerms(TDM, 0.1)
+inspect(TDM.common[1:10,1:10])
+library(slam)
+TDM.dense <- as.matrix(TDM.common) library(reshape2)
+TDM.dense = melt(TDM.dense, value.name = "count")
+library(ggplot2)
+ggplot(TDM.dense, aes(x = Docs, y = Terms, fill = log10(count))) +
+???? geom_tile(colour = "white") +
+???? scale_fill_gradient(high="#FF0000" , low="#FFFFFF")+
+???? ylab("") +
+???? theme(panel.background = element_blank()) +
+???? theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+## Image
+library(ggplot2) 
+? 
+# ggplot theme to be used 
+plotTheme <- function() { 
+theme( 
+panel.background = element_rect( 
+size = 3, 
+colour = "black", 
+fill = "white"), 
+axis.ticks = element_line( 
+size = 2), 
+panel.grid.major = element_line( 
+colour = "gray80", 
+linetype = "dotted"), 
+panel.grid.minor = element_line( 
+colour = "gray90", 
+linetype = "dashed"),  
+
+axis.title.x = element_text( 
+size = rel(1.2), 
+face = "bold"), 
+axis.title.y = element_text( 
+size = rel(1.2), 
+face = "bold"), 
+plot.title = element_text( 
+size = 20, 
+face = "bold", 
+vjust = 1.5) 
+) 
+} 
+# Plot the image 
+ggplot(data = imgRGB, aes(x = x, y = y)) + 
+geom_point(colour = rgb(imgRGB[c("R", "G", "B")])) + 
+labs(title = "Original Image: Colorful Bird") + 
+xlab("x") + 
+ylab("y") + 
+plotTheme()
+
+## Image Clustering
+kClusters <- 3 
+kMeans <- kmeans(imgRGB[, c("R", "G", "B")], centers = kClusters) 
+kColours <- rgb(kMeans$centers[kMeans$cluster,]) 
+ggplot(data = imgRGB, aes(x = x, y = y)) + 
+geom_point(colour = kColours) + 
+labs(title = paste("k-Means Clustering of", kClusters, "Colours")) + 
+xlab("x") + 
+ylab("y") + 
+plotTheme() 
+
+
+
+

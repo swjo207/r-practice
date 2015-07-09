@@ -1,0 +1,144 @@
+library(ggplot2)
+
+# 다이아몬드 데이터 로드하기
+
+data(diamonds)
+
+head(diamonds)
+
+
+
+
+#12,000달라 표시선이 있는 히스토그램 그리기
+
+ggplot(diamonds)+geom_histogram(aes(x=price))+ geom_vline(xintercept=12000)
+
+
+
+
+#가격이 경계값 위에 있는지 알려주는 참/거짓 변수 만들기
+
+diamonds$Expensive <- ifelse(diamonds$price >= 12000,1, 0)
+
+head(diamonds)
+
+
+
+
+#가격열 제거
+
+diamonds$price <- NULL
+
+
+
+
+#glmnet 로드
+
+library(glmnet)
+
+
+
+
+#예측변수 행렬 만들기
+
+x <- model.matrix(~., diamonds[,-ncol(diamonds)])
+
+
+
+
+#응답 벡터 만들기
+
+y <- as.matrix(diamonds$Expensive)
+
+
+
+
+#glmnet 실행하기
+
+system.time(modGlmnet <- glmnet(x=x, y=y, family="binomial"))
+
+
+
+
+# 계수 경로 그리기
+
+plot(modGlmnet, label=TRUE)
+
+
+
+
+#씨드 설정 여러 번 실행해 봄으로 무작위 결과를 재생산 가능하도록
+
+set.seed(1234)
+
+sample(1:10)
+
+
+
+
+
+
+
+# 의사결정나무 그리기
+
+library(rpart)
+
+modTree <- rpart(Expensive ~., data=diamonds)
+
+plot(modTree)
+
+text(modTree)
+
+
+
+
+# 배깅
+
+library(boot)
+
+mean(diamonds$carat)
+
+sd(diamonds$carat)
+
+
+
+
+boot.mean <- function(x,i)
+
+{ mean(x[i] )}
+
+
+
+
+#평균의 변동성 찾기
+
+boot(data=diamonds$carat, statistic=boot.mean, R=120)
+
+library(adabag)
+
+
+
+
+modBag <- bagging(formula=Species~., iris, mfinal=10)
+
+
+
+
+##### 부스팅
+
+library(mboost)
+
+system.time(modglmBoost <- glmboost(as.factor(Expensive)~., data=diamonds, family=Binomial(link="logit")))
+
+summary(modglmBoost)
+
+?blackboost
+
+
+
+
+## 랜덤포레스트
+
+library(randomForest)
+
+system.time(modForest <- randomForest(Species~., data=iris, importance=TRUE, proximity=TRUE))

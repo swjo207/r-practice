@@ -1,0 +1,145 @@
+install.packages("h2o")
+ library(h2o)
+
+
+ localH2O = h2o.init()
+ prosPath = system.file("extdata", "prostate.csv", package="h2o")
+ prostate.hex = h2o.importFile(localH2O, path = prosPath)
+
+
+
+ prostate.dl = h2o.deeplearning(x = 3:9, y = 2, data = prostate.hex, autoencoder = TRUE, hidden = c(10, 10), epochs = 5)
+
+ prostate.dl@model$confusion
+
+
+ prostate.anon = h2o.anomaly(prostate.hex, prostate.dl)
+ head(prostate.anon)
+
+
+
+ # -- CRAN examples begin --
+library(h2o)
+ localH2O = h2o.init()
+ irisPath = system.file("extdata", "iris.csv", package = "h2o")
+ iris.hex = h2o.importFile(localH2O, path = irisPath)
+ h2o.deeplearning(x = 1:4, y = 5, data = iris.hex, activation = "Tanh",hidden = c(10, 10), epochs = 5)
+
+
+ library(h2o)
+ localH2O = h2o.init()
+ housevotesPath = system.file("extdata", "housevotes.csv", package = "h2o")
+ housevotes.hex = h2o.importFile(localH2O, path = housevotesPath)
+ h2o.deeplearning(x = 2:17, y = 1, data = housevotes.hex, classification=T, activation = "Tanh",hidden = c(10, 10), epochs = 20,variable_importances=T)
+
+
+
+
+
+
+
+
+
+ localH2O = h2o.init()
+ deepPath = "C:/Users/user/Desktop/deep1.csv"
+ deep.hex = h2o.importFile(localH2O, path = deepPath)
+ deep.dl=h2o.deeplearning(x = 2:126, y = 1, data = deep.hex, classification=T, activation = "Tanh", autoencoder=T, use_all_factor_levels=T, hidden = c(10,10), epochs = 10,variable_importances=F)
+ deep.dl
+ deep.dl@model
+
+ prediction1 = h2o.predict(deep.dl, newdata = deep.hex)
+ pred1 = as.data.frame(prediction1)
+ acts1 = as.data.frame(deep.hex)
+
+ class.pred1<-table(pred1$predict, acts1$C1)
+
+ write.csv(pred1$predict,"C:\\Users\\user\\Desktop\\predict.csv")
+ write.csv(acts1$C1,"C:\\Users\\user\\Desktop\\acts.csv")
+
+
+
+
+ deepPath2 = "C:/Users/user/Desktop/deep2.csv"
+ deep.hex2 = h2o.importFile(localH2O, path = deepPath2)
+
+
+ prediction2 = h2o.predict(deep.dl, newdata = deep.hex2)
+ pred2 = as.data.frame(prediction2)
+ acts2 = as.data.frame(deep.hex2)
+
+ write.csv(pred2$predict,"C:\\Users\\user\\Desktop\\predict.csv")
+ write.csv(acts2$C1,"C:\\Users\\user\\Desktop\\acts.csv")
+
+
+
+ pred$predict
+ acts$C1
+ head(pred,20)
+ tail(pred)
+
+
+ class.pred<-table(pred$predict, acts$C1)
+
+
+
+
+ str(pred$predict)
+ per = h2o.performance(prediction[,2], deep.hex2[,1], measure = "F1")
+ per
+
+
+
+
+
+
+
+ filter_Word <- function(str){
+     str<-Filter(function(x){nchar(x)>=2}, str)
+     str<-gsub("[[:punct:]]","", str)
+     str[100]<-"EOF"
+     return(str[1:100])
+ }
+
+
+
+ con <- dbConnect(MySQL(), host="222.234.3.18", port=3306, user="mysql_admin",password = "flsnrtmqhdks", dbname="igunsul",client.flag=CLIENT_MULTI_STATEMENTS)
+ rs <- dbSendQuery(con, 'SELECT part, b.condition FROM bbs_2015 a, sub_bbs_2015 b WHERE a.`code`=b.`bbscode` AND a.`part_section`=3 LIMIT 1000;')
+ data <- fetch(rs, n=1000)
+
+
+
+
+
+ result_nouns <- sapply(data$condition, extractNoun, USE.NAMES=F)
+ result_nouns <- sapply(result_nouns, filter_Word, USE.NAMES=F)
+
+ mat_nouns<-matrix(result_nouns,nrow=1000,ncol=100,byrow=TRUE)
+
+
+ str(result_nouns)
+ aa<-cbind(data$part,mat_nouns)
+ write.csv(aa,"C:\\Users\\user\\Desktop\\test_DATA.csv")
+
+ deepPath = "C:/Users/user/Desktop/test_DATA.csv"
+ deep.hex = h2o.importFile(localH2O, path = deepPath)
+ deep.dl=h2o.deeplearning(x = 2:330, y = 1, data = deep.hex, classification=T, activation = "Tanh",hidden = c(10, 10), epochs = 20,variable_importances=F)
+ deep.dl
+ deep.dl@model
+
+
+
+
+
+
+
+
+
+ result_nouns[1]
+ data$part
+
+
+ aa<-cbind(data$part,result_nouns)
+ aa[1][1]
+
+
+
